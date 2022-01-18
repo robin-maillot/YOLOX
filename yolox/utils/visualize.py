@@ -5,7 +5,23 @@
 import cv2
 import numpy as np
 
-__all__ = ["vis"]
+__all__ = ["draw_batch", "vis"]
+
+
+def draw_batch(inps, targets, root, batch_number=0):
+    for i in range(len(targets)):
+        im = inps[i]
+        image = np.transpose(im.cpu().numpy(), (1, 2, 0))
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        for o in targets[i].cpu().numpy():
+            if np.max(o) > 1:
+                color = (_COLORS[int(o[0])] * 255).astype(np.uint8).tolist()
+                x1 = int(o[1] - o[3] / 2)
+                y1 = int(o[2] - o[4] / 2)
+                x2 = int(o[1] + o[3] / 2)
+                y2 = int(o[2] + o[4] / 2)
+                cv2.rectangle(image, (x1, y1), (x2, y2), color, thickness=1)
+        cv2.imwrite(str(root / f"batch_{batch_number:02d}_{i:02d}.png"), image)
 
 
 def vis(img, boxes, scores, cls_ids, conf=0.5, class_names=None):

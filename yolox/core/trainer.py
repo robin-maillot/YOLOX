@@ -3,8 +3,6 @@
 # Copyright (c) Megvii, Inc. and its affiliates.
 
 import datetime
-import os
-from pathlib import Path
 import time
 from loguru import logger
 
@@ -17,6 +15,7 @@ from yolox.utils import (
     MeterBuffer,
     ModelEMA,
     all_reduce_norm,
+    draw_batch,
     get_local_rank,
     get_model_info,
     get_rank,
@@ -92,10 +91,14 @@ class Trainer:
         iter_start_time = time.time()
 
         inps, targets = self.prefetcher.next()
+
         inps = inps.to(self.data_type)
         targets = targets.to(self.data_type)
         targets.requires_grad = False
         inps, targets = self.exp.preprocess(inps, targets, self.input_size)
+        if self.epoch == self.start_epoch and self.iter < 2:
+            draw_batch(inps, targets, self.file_name, self.iter)
+            exit()
         data_end_time = time.time()
 
         with torch.cuda.amp.autocast(enabled=self.amp_training):
@@ -143,6 +146,7 @@ class Trainer:
 
         # data related init
         self.no_aug = self.start_epoch >= self.max_epoch - self.exp.no_aug_epochs
+
         self.train_loader = self.exp.get_data_loader(
             batch_size=self.args.batch_size,
             is_distributed=self.is_distributed,
