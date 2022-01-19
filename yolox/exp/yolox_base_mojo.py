@@ -25,21 +25,21 @@ class Exp(BaseExp):
         # ---------------- dataloader config ---------------- #
         # set worker to 4 for shorter dataloader init time
         self.data_num_workers = 1
-        self.input_size = (640, 640)  # (height, width)
+        self.input_size = (608, 960)  # (height, width)
         # Actual multiscale ranges: [640-5*32, 640+5*32].
         # To disable multiscale training, set the
         # self.multiscale_range to 0.
         self.multiscale_range = 0
         # You can uncomment this line to specify a multiscale range
         # self.random_size = (14, 26)
-        self.data_dir = Path(r"D:\Nanovare\repos\yolox_tests\YOLO2COCO\dataset\kings-v3_new_COCO_format")
+        self.data_dir = Path(r"D:\Nanovare\repos\yolox_tests\YOLO2COCO\dataset\kings-v3_new_COCO_format_full")
         self.train_ann = "instances_train2017.json"
         self.val_ann = "instances_val2017.json"
         self.test_ann = "instances_val2017.json"
 
         # --------------- transform config ----------------- #
-        self.mosaic_prob = 0.0
-        self.mixup_prob = 1.0
+        self.mosaic_prob = 0.5
+        self.mixup_prob = 0.0
         self.hsv_prob = 0.2
         self.flip_prob = 0.5
         self.degrees = 20.0
@@ -47,7 +47,7 @@ class Exp(BaseExp):
         self.mosaic_scale = (0.75, 1.25)
         self.mixup_scale = (0.5, 1.5)
         self.shear = 0.0
-        self.enable_mixup = True
+        self.enable_mixup = False
 
         # --------------  training config --------------------- #
         self.warmup_epochs = 5
@@ -55,18 +55,18 @@ class Exp(BaseExp):
         self.warmup_lr = 0
         self.basic_lr_per_img = 0.01 / 4.0
         self.scheduler = "yoloxwarmcos"
-        self.no_aug_epochs = 25
+        self.no_aug_epochs = 10
         self.min_lr_ratio = 0.05
-        self.ema = True
+        self.ema = False
 
         self.weight_decay = 5e-4
         self.momentum = 0.9
         self.print_interval = 10
         self.eval_interval = 2
-        self.exp_name = Path(__file__).resolve().stem + "_v3_2"
+        self.exp_name = Path(__file__).resolve().stem + "_v3_960_4"
 
         # -----------------  testing config ------------------ #
-        self.test_size = (640, 640)
+        self.test_size = self.input_size
         self.test_conf = 0.01
         self.nmsthre = 0.65
 
@@ -114,7 +114,7 @@ class Exp(BaseExp):
                 json_file=self.train_ann,
                 img_size=self.input_size,
                 preproc=TrainTransform(
-                    max_labels=50,
+                    max_labels=85,
                     flip_prob=self.flip_prob,
                     hsv_prob=self.hsv_prob),
                 cache=cache_img,
@@ -125,7 +125,7 @@ class Exp(BaseExp):
             mosaic=not no_aug,
             img_size=self.input_size,
             preproc=TrainTransform(
-                max_labels=120,
+                max_labels=85,
                 flip_prob=self.flip_prob,
                 hsv_prob=self.hsv_prob),
             degrees=self.degrees,

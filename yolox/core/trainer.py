@@ -56,6 +56,8 @@ class Trainer:
         self.meter = MeterBuffer(window_size=exp.print_interval)
         self.file_name = exp.output_dir / args.experiment_name
 
+        from collections import defaultdict
+        self.loss_accumulator = defaultdict(lambda : 0)
         if self.rank == 0:
             self.file_name.mkdir(parents=True, exist_ok=True)
 
@@ -96,15 +98,24 @@ class Trainer:
         targets = targets.to(self.data_type)
         targets.requires_grad = False
         inps, targets = self.exp.preprocess(inps, targets, self.input_size)
-        if self.epoch == self.start_epoch and self.iter < 2:
+        if self.epoch == self.start_epoch and self.iter * len(inps) < 16:
             draw_batch(inps, targets, self.file_name, self.iter)
-            exit()
         data_end_time = time.time()
 
         with torch.cuda.amp.autocast(enabled=self.amp_training):
             outputs = self.model(inps, targets)
 
         loss = outputs["total_loss"]
+        if self.iter == 0:
+            for key in self.loss_accumulator:
+                self.loss_accumulator[key] = 0
+
+        for key in outputs:
+            if isinstance(outputs[key], torch.Tensor):
+                v = outputs[key].detach().cpu().numpy()
+            else:
+                v = outputs[key]
+            self.loss_accumulator[key] += v
 
         self.optimizer.zero_grad()
         self.scaler.scale(loss).backward()
@@ -117,6 +128,11 @@ class Trainer:
         lr = self.lr_scheduler.update_lr(self.progress_in_iter + 1)
         for param_group in self.optimizer.param_groups:
             param_group["lr"] = lr
+
+        if self.iter == self.max_iter - 1:
+            for key in self.loss_accumulator:
+                self.tblogger.add_scalar(f"loss/{key}", self.loss_accumulator[key]/self.max_iter, self.epoch + 1)
+            self.tblogger.add_scalar(f"lr/lr", lr, self.epoch + 1)
 
         iter_end_time = time.time()
         self.meter.update(

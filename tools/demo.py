@@ -218,10 +218,17 @@ def imageflow_demo(predictor, vis_folder, current_time, args):
     vid_writer = cv2.VideoWriter(
         str(save_path), cv2.VideoWriter_fourcc(*"mp4v"), fps, (int(width), int(height))
     )
+    n_detections_full = []
+    n_detections_filtered = []
+    import numpy as np
     while True:
         ret_val, frame = cap.read()
         if ret_val:
             outputs, img_info = predictor.inference(frame)
+            output = outputs[0].cpu().numpy()
+            scores = output[:, 4] * output[:, 5]
+            n_detections_full.append(len(output))
+            n_detections_filtered.append(np.sum(scores>predictor.confthre))
             result_frame = predictor.visual(outputs[0], img_info, predictor.confthre)
             if args.save_result:
                 vid_writer.write(result_frame)
@@ -230,7 +237,12 @@ def imageflow_demo(predictor, vis_folder, current_time, args):
                 break
         else:
             break
-
+    import matplotlib.pyplot as plt
+    plt.plot(n_detections_full)
+    plt.plot(n_detections_full)
+    plt.xlabel("Frame Number")
+    plt.ylabel("Number of detections")
+    plt.savefig(f"{save_folder}/{save_path.stem}_detections.png")
 
 def main(exp, args):
     if not args.experiment_name:
